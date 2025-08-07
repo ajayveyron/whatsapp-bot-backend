@@ -1,22 +1,25 @@
-
 import admin from "firebase-admin";
 import { readFileSync } from "fs";
 
-console.log("🔁 Initializing Firebase...");
-
+// Load service account
 const serviceAccount = JSON.parse(
   readFileSync("./serviceAccountKey.json", "utf8")
 );
 
+// Init Firebase
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://whatsapp-bot-a0b24-default-rtdb.firebaseio.com", // Replace!
   });
-  console.log("✅ Firebase initialized");
 }
 
 const db = admin.database();
-console.log("🌐 Connected to Realtime Database");
 
-export { db };
+const run = async () => {
+  await db.ref("test-write").set({ message: "Hello from Ajay!" });
+  console.log("✅ Firebase test write successful");
+  process.exit();
+};
+
+run();
