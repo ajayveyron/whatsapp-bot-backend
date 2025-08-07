@@ -1,6 +1,6 @@
 import getRawBody from "raw-body";
 import querystring from "querystring";
-import { db } from "../firebase.js";
+import { db } from "../../firebase.js";
 
 export const config = {
   api: {
