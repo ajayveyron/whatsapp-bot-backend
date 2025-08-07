@@ -108,7 +108,7 @@ IMPORTANT:
 - Extract questions from ALL images and text messages
 - Preserve the EXACT wording of questions and options
 - Do NOT modify, summarize, or change any text
-- If questions are found, return them in the exact format they appear
+- If questions are found, return them in the exact formatting as they appear
 - If no questions are found, return an empty array
 - do not cut short any questions and their supporting text.
 
