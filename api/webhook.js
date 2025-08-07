@@ -1,5 +1,7 @@
 import { db } from "../../firebase.js";
 
+
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).send("Method not allowed");
@@ -24,6 +26,8 @@ export default async function handler(req, res) {
 
   const userRef = db.ref(`sessions/${userId}`);
   const now = Date.now();
+
+  console.log("writing to Firebase...", content)
 
   // Push message to Firebase
   await userRef.child("messages").push({
