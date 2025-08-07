@@ -110,6 +110,7 @@ IMPORTANT:
 - Do NOT modify, summarize, or change any text
 - If questions are found, return them in the exact format they appear
 - If no questions are found, return an empty array
+- do not cut short any questions and their supporting text.
 
 Return the questions in this exact JSON format:
 {
