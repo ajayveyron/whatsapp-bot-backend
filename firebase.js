@@ -1,22 +1,49 @@
+import { db } from "../../firebase.js";
 
-import admin from "firebase-admin";
-import { readFileSync } from "fs";
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    console.log("❌ Invalid method:", req.method);
+    return res.status(405).send("Method not allowed");
+  }
 
-console.log("🔁 Initializing Firebase...");
+  try {
+    const body = req.body;
+    console.log("📩 Incoming body:", body);
 
-const serviceAccount = JSON.parse(
-  readFileSync("./serviceAccountKey.json", "utf8")
-);
+    const from = body.From;
+    const userId = from?.replace("whatsapp:", "");
+    const numMedia = parseInt(body.NumMedia);
+    const messageType = numMedia > 0 ? "image" : "text";
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://whatsapp-bot-a0b24-default-rtdb.firebaseio.com", // Replace!
-  });
-  console.log("✅ Firebase initialized");
+    let content;
+    if (messageType === "text") {
+      content = { type: "text", text: body.Body };
+    } else {
+      content = {
+        type: "image",
+        url: body.MediaUrl0,
+        mediaType: body.MediaContentType0,
+      };
+    }
+
+    const userRef = db.ref(`sessions/${userId}`);
+    const now = Date.now();
+
+    console.log("🔁 Writing to Firebase:", content);
+
+    // Push message
+    await userRef.child("messages").push({
+      ...content,
+      timestamp: now,
+    });
+
+    // Update last seen
+    await userRef.update({ lastSeen: now });
+
+    console.log("✅ Firebase write complete for user:", userId);
+    res.status(200).send("Message stored.");
+  } catch (err) {
+    console.error("🔥 ERROR:", err);
+    res.status(500).send("Internal server error.");
+  }
 }
-
-const db = admin.database();
-console.log("🌐 Connected to Realtime Database");
-
-export { db };
