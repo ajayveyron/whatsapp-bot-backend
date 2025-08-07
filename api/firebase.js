@@ -6,7 +6,8 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://whatsapp-bot-a0b24-default-rtdb.firebaseio.com" // ← your ID
+    databaseURL: "https://whatsapp-bot-a0b24-default-rtdb.firebaseio.com", // ← your ID
+    storageBucket: "whatsapp-bot-a0b24.appspot.com" // ← your storage bucket
   });
 }
 
