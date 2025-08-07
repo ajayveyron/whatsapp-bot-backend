@@ -1,4 +1,4 @@
-let sessions = {}; // In-memory user sessions
+import { db } from "../../firebase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -6,9 +6,8 @@ export default async function handler(req, res) {
   }
 
   const body = req.body;
-  const from = body.From; // e.g., 'whatsapp:+918888888888'
+  const from = body.From;
   const userId = from.replace("whatsapp:", "");
-
   const numMedia = parseInt(body.NumMedia);
   const messageType = numMedia > 0 ? "image" : "text";
 
@@ -23,34 +22,19 @@ export default async function handler(req, res) {
     };
   }
 
-  // Store in session
-  if (!sessions[userId]) {
-    sessions[userId] = {
-      messages: [],
-      timeout: null,
-    };
-  }
+  const userRef = db.ref(`sessions/${userId}`);
+  const now = Date.now();
 
-  sessions[userId].messages.push(content);
+  // Push message to Firebase
+  await userRef.child("messages").push({
+    ...content,
+    timestamp: now,
+  });
 
-  // Reset timeout if already set
-  if (sessions[userId].timeout) {
-    clearTimeout(sessions[userId].timeout);
-  }
+  // Store/update lastSeen
+  await userRef.update({ lastSeen: now });
 
-  // Start a new 60-second timeout
-  sessions[userId].timeout = setTimeout(() => {
-    console.log(`Processing batch for ${userId}...`);
+  console.log("✅ Message saved to Firebase for", userId);
 
-    const allMessages = sessions[userId].messages;
-
-    // TODO: send these to Gemini + build PDF
-
-    console.log("Final batch of messages:", allMessages);
-
-    // Clear session after processing
-    delete sessions[userId];
-  }, 60000); // 60 seconds
-
-  res.status(200).send("Message added to session.");
+  res.status(200).send("Message received.");
 }
