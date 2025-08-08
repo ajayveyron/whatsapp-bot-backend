@@ -5,6 +5,16 @@
         "src": "/api/webhook",
         "methods": ["POST"],
         "dest": "/api/webhook.js"
+      },
+      {
+        "src": "/api/pdf",
+        "methods": ["GET"],
+        "dest": "/api/pdf.js"
+      },
+      {
+        "src": "/api/admin/stats",
+        "methods": ["GET"],
+        "dest": "/api/admin/stats.js"
       }
     ]
   }

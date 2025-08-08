@@ -25,6 +25,20 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Usage limits
+const MAX_MONTHLY_PDFS = Number(process.env.MAX_MONTHLY_PDFS || 30);
+const ADMIN_WHATSAPP_NUMBER = process.env.ADMIN_WHATSAPP_NUMBER || null; // e.g. +91999...
+
+function getMonthKey(date = new Date()) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function getUsageRef(userId, monthKey) {
+  return db.ref(`usage/${monthKey}/${userId}`);
+}
+
 // 3️⃣ Extract text from images using OpenAI Vision
 async function extractTextFromImage(imageUrl) {
   try {
@@ -380,14 +394,29 @@ async function sendPdfOverWhatsApp(userId, pdfUrl) {
 // 6️⃣ Process a full batch when user types “done”
 async function processBatchFor(userId, res) {
   try {
-    // A) Fetch messages
-    const snap = await db.ref(`sessions/${userId}/messages`).once("value");
-    const msgsObj = snap.val() || {};
-    const messages = Object.values(msgsObj);
+    // 0) Enforce monthly usage limits
+    const monthKey = getMonthKey();
+    const usageRef = getUsageRef(userId, monthKey);
+    const usageSnap = await usageRef.once('value');
+    const usage = usageSnap.val() || { pdfCount: 0, questionCount: 0 };
+    if (usage.pdfCount >= MAX_MONTHLY_PDFS) {
+      const contact = ADMIN_WHATSAPP_NUMBER ? ` Reach out at whatsapp:${ADMIN_WHATSAPP_NUMBER}` : ' Reach out to the admin.';
+      await twilioClient.messages.create({
+        from: process.env.TWILIO_WHATSAPP_NUMBER,
+        to: `whatsapp:${userId}`,
+        body: `Limit reached: You have used ${usage.pdfCount}/${MAX_MONTHLY_PDFS} PDFs this month.${contact}`,
+      });
+      return res.status(429).send("Monthly limit reached");
+    }
+
+  // A) Fetch messages
+  const snap = await db.ref(`sessions/${userId}/messages`).once("value");
+  const msgsObj = snap.val() || {};
+  const messages = Object.values(msgsObj);
 
     console.log(`Processing ${messages.length} messages for user ${userId}`);
 
-    // B) Extract questions
+  // B) Extract questions
     const questions = await extractQuestions(messages);
     console.log('Questions extracted:', questions);
 
@@ -399,8 +428,9 @@ async function processBatchFor(userId, res) {
       questions,
     });
 
-    const host = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://whatsapp-bot-backend.vercel.app';
-    const pdfLink = `${host}/api/pdf?userId=${encodeURIComponent(userId)}&exportId=${encodeURIComponent(exportId)}`;
+    // Always use a public, stable base URL for links
+    const baseUrl = process.env.PUBLIC_BASE_URL || 'https://whatsapp-bot-backend.vercel.app';
+    const pdfLink = `${baseUrl}/api/pdf?userId=${encodeURIComponent(userId)}&exportId=${encodeURIComponent(exportId)}`;
 
     // Send a text message with a tappable link; most WhatsApp clients preview PDFs when tapped
     const listText = questions.map((q, i) => `${i + 1}. ${q.q}`).join('\n');
@@ -411,8 +441,17 @@ async function processBatchFor(userId, res) {
       body,
     });
 
+    // C2) Update monthly usage counters transactionally
+    await usageRef.transaction((current) => {
+      const next = current || { pdfCount: 0, questionCount: 0 };
+      next.pdfCount = (next.pdfCount || 0) + 1;
+      next.questionCount = (next.questionCount || 0) + (Array.isArray(questions) ? questions.length : 0);
+      next.lastAt = Date.now();
+      return next;
+    });
+
     // D) Cleanup
-    await db.ref(`sessions/${userId}`).remove();
+  await db.ref(`sessions/${userId}`).remove();
 
     return res.status(200).send("🎉 Processing complete! PDF link sent.");
   } catch (error) {
