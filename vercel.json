@@ -2,6 +2,10 @@
     "version": 2,
     "routes": [
       {
+        "src": "/assets/fonts/(.*)",
+        "dest": "/assets/fonts/$1"
+      },
+      {
         "src": "/api/webhook",
         "methods": ["POST"],
         "dest": "/api/webhook.js"

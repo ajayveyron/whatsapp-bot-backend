@@ -1,0 +1,28 @@
+/*
+curl -s -H "x-admin-key: Pawriya@13579" "https://whatsapp-bot-backend.vercel.app/api/admin/stats"
+*/
+{
+    "month": "2025-08",
+    "totalPdfs": 20,
+    "totalQuestions": 52,
+    "users": [
+        {
+            "userId": "+917988810502",
+            "pdfCount": 17,
+            "questionCount": 37,
+            "lastAt": 1754647776029
+        },
+        {
+            "userId": "+919306201576",
+            "pdfCount": 2,
+            "questionCount": 5,
+            "lastAt": 1754595613841
+        },
+        {
+            "userId": "+918307863358",
+            "pdfCount": 1,
+            "questionCount": 10,
+            "lastAt": 1754648828399
+        }
+    ]
+}

@@ -3,6 +3,8 @@ import getRawBody from "raw-body";
 import querystring from "querystring";
 import fetch from "node-fetch";
 import PDFDocument from "pdfkit";
+import path from "path";
+import fs from "fs";
 import Twilio from "twilio";
 import admin from "firebase-admin";
 import OpenAI from "openai";
@@ -52,7 +54,7 @@ async function extractTextFromImage(imageUrl) {
           content: [
             {
               type: "text",
-              text: "Extract ALL text from this image EXACTLY as it appears. Do not modify, summarize, or change any text. If there are questions with options, preserve the exact wording and format. Return only the raw extracted text without any modifications."
+              text: "Extract ALL question and options and answer related text from this image EXACTLY as it appears. Do not modify, summarize, or change any text. If there are questions with options, preserve the exact wording and format. Return only the raw extracted text without any modifications."
             },
             {
               type: "image_url",
@@ -63,7 +65,7 @@ async function extractTextFromImage(imageUrl) {
           ]
         }
       ],
-      max_tokens: 2000
+      max_completion_tokens: 2000
     });
 
     const extractedText = response.choices[0].message.content;
@@ -125,6 +127,10 @@ IMPORTANT:
 - If questions are found, return them in the exact formatting as they appear
 - If no questions are found, return an empty array
 - do not cut short any questions and their supporting text.
+- exclude text like question serial number.
+- do not include any text like "question 1", "question 2", "q1", "q2", "q3" etc.
+- sometimes the image or given text might have more than one question. extract all of them.
+- Ensure bullet points are consistently formatted. If using alphabetic bullets (A., B., C., etc.), apply this style to all options within a question and among all the questions.
 
 Return the questions in this exact JSON format:
 {
@@ -146,7 +152,7 @@ If questions are found, use this format:
                           ],
                           response_format: { type: "json_object" },
                           temperature: 0.1,
-                          max_tokens: 1000
+                          max_completion_tokens: 1000
                         });
 
     const result = JSON.parse(response.choices[0].message.content);
@@ -247,6 +253,8 @@ async function createAndUploadPdf(userId, questions) {
       margins: { top: 64, bottom: 72, left: 56, right: 56 }
     });
 
+    // Use built-in fonts only for now for maximum compatibility with English
+
     const buffers = [];
     doc.on("data", (chunk) => buffers.push(chunk));
     doc.on("end", async () => {
@@ -266,6 +274,15 @@ async function createAndUploadPdf(userId, questions) {
 
     // Helpers: header and footer on every page
     const drawHeader = () => {
+      // Optional brand logo on the left if available
+      try {
+        const logoPath = path.join(process.cwd(), 'assets', 'brand', 'logo.jpeg');
+        if (fs.existsSync(logoPath)) {
+          const topY = doc.page.margins.top - 40;
+          doc.image(logoPath, doc.page.margins.left, topY, { fit: [36, 36] });
+        }
+      } catch (_) {}
+
       doc
         .font('Helvetica-Bold')
         .fontSize(16)

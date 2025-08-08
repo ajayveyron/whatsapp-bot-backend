@@ -1,5 +1,7 @@
 // api/pdf.js
 import PDFDocument from "pdfkit";
+import path from "path";
+import fs from "fs";
 import { db } from "./firebase.js";
 
 export const config = {
@@ -29,12 +31,29 @@ function paintBackground(doc) {
 function drawBrand(doc) {
   // Simple textual brand to avoid image assets
   doc.save();
-  doc.fillColor(theme.brand).font('Times-Bold').fontSize(20);
-  doc.text('Result गुरु', doc.page.margins.left, doc.page.margins.top - 30, {
-    width: 200,
-  });
-  // Small accent dot to the left for a hint of the logo color
-  doc.circle(doc.page.margins.left - 14, doc.page.margins.top - 18, 5).fill(theme.brandAccent);
+  try {
+    const logoPath = path.join(process.cwd(), 'assets', 'brand', 'logo.jpeg');
+    if (fs.existsSync(logoPath)) {
+      // Draw logo image at top-left, sized to fit nicely in the header area
+      // Draw the logo centered, 3x original size, with 0.2 opacity
+      const logoSize = 36 * 5; // 3x original size
+      const centerX = (doc.page.width - logoSize) / 2;
+      const centerY = (doc.page.height - logoSize) / 2;
+      doc.save();
+      doc.opacity(0.2);
+      doc.image(logoPath, centerX, centerY, { fit: [logoSize, logoSize] });
+      doc.opacity(1);
+      doc.restore();
+    } else {
+      // Fallback to text brand if logo image is not present
+      doc.fillColor(theme.brand).font('Times-Bold').fontSize(20);
+      doc.text('Result गुरु', doc.page.margins.left, doc.page.margins.top - 30, { width: 200 });
+      // Small accent dot to the left for a hint of the logo color
+      doc.circle(doc.page.margins.left - 14, doc.page.margins.top - 18, 5).fill(theme.brandAccent);
+    }
+  } catch (_) {
+    // On any error, do nothing—keep PDF generation resilient
+  }
   doc.restore();
 }
 
